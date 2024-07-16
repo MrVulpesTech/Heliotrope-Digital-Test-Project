@@ -59,6 +59,11 @@ export default function Cart() {
     }
   }, [data]);
 
+  // Refetch cart items after initial load
+  useEffect(() => {
+    refetch();
+  }, []);
+
   const [removeFromCart] = useMutation(REMOVE_FROM_CART, {
     onCompleted: (data) => {
       if (data && data.removeFromCart) {

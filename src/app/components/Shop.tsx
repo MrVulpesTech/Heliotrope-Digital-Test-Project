@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { gql, useMutation } from '@apollo/client';
+import { gql, useMutation, useQuery } from '@apollo/client';
 import { useApolloClient } from '@apollo/client';
 
 interface Product {
@@ -37,10 +37,28 @@ const ADD_TO_CART = gql`
   }
 `;
 
+const GET_CART = gql`
+  query GetCart {
+    cart {
+      id
+      name
+      price
+      quantity
+    }
+  }
+`;
+
 export default function Shop() {
   const [cart, setCart] = useState<Product[]>([]);
   const [addToCart] = useMutation(ADD_TO_CART);
+  const { data: cartData, loading: cartLoading, error: cartError, refetch: refetchCart } = useQuery(GET_CART);
   const client = useApolloClient();
+
+  useEffect(() => {
+    if (cartData && cartData.cart) {
+      setCart(cartData.cart);
+    }
+  }, [cartData]);
 
   const handleAddToCart = async (product: Product) => {
     try {
@@ -57,13 +75,16 @@ export default function Shop() {
           return [...prevCart, data.addToCart];
         }
       });
-      await client.refetchQueries({
+      client.refetchQueries({
         include: ["GetCart"],
       });
     } catch (error) {
       console.error("Error adding to cart:", error);
     }
   };
+
+  if (cartLoading) return <div>Loading...</div>;
+  if (cartError) return <div>Error loading cart data.</div>;
 
   return (
     <div className="container mx-auto p-4 bg-white min-h-screen">

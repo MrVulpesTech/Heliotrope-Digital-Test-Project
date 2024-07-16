@@ -28,6 +28,11 @@ const resolvers = {
   },
   Mutation: {
     addToCart: (_, { id, name, price, quantity }) => {
+      const existingItem = cart.find(item => item.id === id);
+      if (existingItem) {
+        existingItem.quantity += quantity;
+        return existingItem;
+      }
       const newItem = { id, name, price, quantity };
       cart.push(newItem);
       return newItem;
