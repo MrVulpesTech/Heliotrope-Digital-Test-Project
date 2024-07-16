@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import Cookies from 'js-cookie';
+import { gql, useMutation } from '@apollo/client';
+import { useApolloClient } from '@apollo/client';
 
 interface Product {
   id: string;
@@ -25,39 +26,43 @@ const products: Product[] = [
   { id: '9', name: 'The Witcher. 6. The Tower of the Swallow', price: 20, image: '/images/book9.webp', type: 'book', quantity: 1 },
 ];
 
+const ADD_TO_CART = gql`
+  mutation AddToCart($id: ID!, $name: String!, $price: Float!, $quantity: Int!) {
+    addToCart(id: $id, name: $name, price: $price, quantity: $quantity) {
+      id
+      name
+      price
+      quantity
+    }
+  }
+`;
+
 export default function Shop() {
   const [cart, setCart] = useState<Product[]>([]);
+  const [addToCart] = useMutation(ADD_TO_CART);
+  const client = useApolloClient();
 
-  useEffect(() => {
-    const storedCart = Cookies.get('cart');
-    if (storedCart) {
-      setCart(JSON.parse(storedCart));
-      console.log('Loaded cart from cookies:', JSON.parse(storedCart));
+  const handleAddToCart = async (product: Product) => {
+    try {
+      const { data } = await addToCart({
+        variables: { id: product.id, name: product.name, price: product.price, quantity: 1 },
+      });
+      setCart(prevCart => {
+        const existingItem = prevCart.find(item => item.id === data.addToCart.id);
+        if (existingItem) {
+          return prevCart.map(item =>
+            item.id === data.addToCart.id ? { ...item, quantity: item.quantity + 1 } : item
+          );
+        } else {
+          return [...prevCart, data.addToCart];
+        }
+      });
+      await client.refetchQueries({
+        include: ["GetCart"],
+      });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
     }
-  }, []);
-
-  useEffect(() => {
-    if (cart.length > 0) {
-      Cookies.set('cart', JSON.stringify(cart), { expires: 7 });
-      console.log('Cart updated:', cart);
-    }
-  }, [cart]);
-
-  const handleAddToCart = (product: Product) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id);
-      if (existingItem) {
-        const updatedCart = prevCart.map(item =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-        console.log('Item quantity increased:', updatedCart);
-        return updatedCart;
-      } else {
-        const updatedCart = [...prevCart, { ...product, quantity: 1 }];
-        console.log('Item added to cart:', updatedCart);
-        return updatedCart;
-      }
-    });
   };
 
   return (

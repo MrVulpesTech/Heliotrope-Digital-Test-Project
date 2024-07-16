@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Lottie from 'react-lottie';
-import animationData from '../../../public/animation.json'; // Update with your actual path
+import animationData from '../../../public/animation.json'; 
 
 const OrderConfirmation = ({ onAnimationComplete }: { onAnimationComplete: () => void }) => {
   const [isAnimationComplete, setIsAnimationComplete] = useState(false);
 
   useEffect(() => {
     if (isAnimationComplete) {
-      const timer = setTimeout(onAnimationComplete, 2000); // Show message for 2 seconds
+      const timer = setTimeout(onAnimationComplete, 2000);
       return () => clearTimeout(timer);
     }
   }, [isAnimationComplete, onAnimationComplete]);

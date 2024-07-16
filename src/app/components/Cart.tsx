@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import Link from 'next/link';
 import { Trash2 } from 'lucide-react';
-import Cookies from 'js-cookie';
 import OrderConfirmation from './OrderConfirmation';
 
 interface CartItem {
@@ -51,38 +50,20 @@ const CLEAR_CART = gql`
 `;
 
 export default function Cart() {
-  const { data, refetch } = useQuery(GET_CART);
+  const { data, loading, error, refetch } = useQuery(GET_CART);
   const [cart, setCart] = useState<CartItem[] | null>(null);
 
   useEffect(() => {
-    const storedCart = Cookies.get('cart');
-    if (storedCart) {
-      const parsedCart = JSON.parse(storedCart);
-      console.log('Loaded cart from cookies:', parsedCart);
-      if (parsedCart.length > 0) {
-        setCart(parsedCart);
-      }
-    } else if (data && data.cart.length > 0) {
-      console.log('Loaded cart from server:', data.cart);
+    if (data && data.cart) {
       setCart(data.cart);
     }
   }, [data]);
 
-  useEffect(() => {
-    if (cart !== null) {
-      console.log('Cart state updated:', cart);
-      Cookies.set('cart', JSON.stringify(cart), { expires: 7 });
-    }
-  }, [cart]);
-
   const [removeFromCart] = useMutation(REMOVE_FROM_CART, {
     onCompleted: (data) => {
       if (data && data.removeFromCart) {
-        console.log('Item removed:', data.removeFromCart.id);
         setCart(prevCart => prevCart ? prevCart.filter(item => item.id !== data.removeFromCart.id) : null);
         refetch();
-      } else {
-        console.error('Error removing item:', data);
       }
     },
     onError: (error) => {
@@ -93,11 +74,8 @@ export default function Cart() {
   const [updateQuantity] = useMutation(UPDATE_QUANTITY, {
     onCompleted: (data) => {
       if (data && data.updateQuantity) {
-        console.log('Quantity updated:', data.updateQuantity);
         setCart(prevCart => prevCart ? prevCart.map(item => (item.id === data.updateQuantity.id ? { ...item, quantity: data.updateQuantity.quantity } : item)) : null);
         refetch();
-      } else {
-        console.error('Error updating quantity:', data);
       }
     },
     onError: (error) => {
@@ -107,7 +85,6 @@ export default function Cart() {
 
   const [clearCart] = useMutation(CLEAR_CART, {
     onCompleted: () => {
-      console.log('Cart cleared');
       setCart([]);
       refetch();
     },
@@ -137,12 +114,10 @@ export default function Cart() {
   });
 
   const handleRemoveFromCart = (id: string) => {
-    console.log('Removing item:', id);
     removeFromCart({ variables: { id } });
   };
 
   const handleUpdateQuantity = (id: string, quantity: number) => {
-    console.log('Updating quantity:', id, quantity);
     if (quantity <= 0) return;
     updateQuantity({ variables: { id, quantity } });
   };
@@ -150,7 +125,6 @@ export default function Cart() {
   const handleConfirmOrder = () => {
     setIsOrderConfirmed(true);
     clearCart();
-    Cookies.remove('cart');
   };
 
   const handleAnimationComplete = () => {
@@ -178,9 +152,10 @@ export default function Cart() {
     }, 2000);
   };
 
-  if (cart === null) return <div>Loading...</div>;
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error loading cart data.</div>;
 
-  const totalPrice = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const totalPrice = cart?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
 
   if (isOrderConfirmed) {
     return <OrderConfirmation onAnimationComplete={handleAnimationComplete} />;
@@ -209,7 +184,7 @@ export default function Cart() {
       )}
       <h1 className="text-2xl font-semibold mb-4 text-black">Cart</h1>
       <ul className="space-y-4">
-        {cart.map(item => (
+        {cart?.map(item => (
           <li key={item.id} className="flex justify-between items-center border-b pb-2">
             <div className="text-black">
               <p className="text-lg font-medium">{item.name} - ${item.price} x {item.quantity}</p>
@@ -239,7 +214,7 @@ export default function Cart() {
         ))}
       </ul>
       <div className="mt-6">
-        <h2 className="text-xl font-semibold text-black">Total: ${isNaN(totalPrice) ? 0 : totalPrice}</h2>
+        <h2 className="text-xl font-semibold text-black">Total: ${totalPrice}</h2>
         <form className="mt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Name</label>
